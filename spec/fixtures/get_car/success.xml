@@ -1,0 +1,10 @@
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+   <soap:Body>
+      <ns2:getCarResponse xmlns:ns2="http://cars.example.com/">
+         <return>
+           <brand>VW</brand>
+           <color>blue</color>
+         </return>
+      </ns2:getCarResponse>
+   </soap:Body>
+</soap:Envelope>

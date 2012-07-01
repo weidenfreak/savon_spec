@@ -25,6 +25,10 @@ describe Savon::Spec::Mock do
         Savon::Spec::ExpectationError,
         "expected :getUser to be called, got: :getUserById"
       )
+    it "should set up HTTPI to mock POST requests for more than one given SOAP action" do
+      savon.expects(:get_car).returns
+      client.request :get_user
+      client.request :get_car
     end
 
     it "should not lower_camelcase actions that are passed as string" do
