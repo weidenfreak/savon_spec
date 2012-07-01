@@ -46,6 +46,11 @@ describe Savon::Spec::Mock do
       before do
         savon.expects(:get_user).with(:id => 1)
       end
+    it "should fail when no SOAP call was made" do
+      expect { verify_mocks_for_rspec }.to raise_error(
+        Mocha::ExpectationError,
+        /expected exactly once, not yet invoked: HTTPI.post/
+      )
 
       it "expects Savon to send a specific SOAP body" do
         client.request :get_user, :body => { :id => 1 }
