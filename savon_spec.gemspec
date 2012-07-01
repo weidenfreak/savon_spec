@@ -15,6 +15,7 @@ Gem::Specification.new do |s|
 
   s.add_dependency "savon", "~> 1.1.0"
   s.add_dependency "rspec", ">= 2.0.0"
+  s.add_dependency "mocha", ">= 0.9.8"
 
   s.add_development_dependency "httpclient", "~> 2.1.5"
   s.add_development_dependency "webmock",    "~> 1.4.0"

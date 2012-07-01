@@ -1,5 +1,7 @@
+# -*- encoding : utf-8 -*-
 require "savon"
 require "rspec"
+require "mocha"
 
 module Savon
   module Spec
@@ -12,5 +14,6 @@ module Savon
 end
 
 RSpec.configure do |config|
-  config.after { Savon.config.hooks.reject(Savon::Spec::Mock::HOOKS) }
+  config.mock_with :mocha
 end
+

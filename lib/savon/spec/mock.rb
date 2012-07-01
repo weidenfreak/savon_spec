@@ -1,91 +1,76 @@
+# -*- encoding : utf-8 -*-
 module Savon
   module Spec
 
-    class ExpectationError < RuntimeError; end
-
     # = Savon::Spec::Mock
     #
-    # Mocks Savon SOAP requests.
+    # Mocks/stubs SOAP requests executed by Savon.
     class Mock
 
-      # Hooks registered by Savon::Spec.
-      HOOKS = [:spec_action, :spec_body, :spec_response, :spec_never]
-
-      # Expects that a given +action+ should be called.
-      def expects(expected)
-        self.action = expected
-
-        Savon.config.hooks.define(:spec_action, :soap_request) do |_, request|
-          actual = request.soap.input[1]
-          raise ExpectationError, "expected #{action.inspect} to be called, got: #{actual.inspect}" unless actual == action
-
-          respond_with
-        end
-
+      # Mocks SOAP requests to a given <tt>soap_action</tt>.
+      def expects(soap_action)
+        setup :expects, soap_action
         self
       end
 
-      # Accepts a SOAP +body+ to check if it was set. Also accepts a +block+
-      # which receives the <tt>Savon::SOAP::Request</tt> to set up custom expectations.
-      def with(body = nil, &block)
-        Savon.config.hooks.define(:spec_body, :soap_request) do |_, request|
-          if block
-            block.call(request)
-          else
-            actual = request.soap.body
-            raise ExpectationError, "expected #{body.inspect} to be sent, got: #{actual.inspect}" unless actual == body
-          end
-
-          respond_with
-        end
-
+      # Stubs SOAP requests to a given <tt>soap_action</tt>.
+      def stubs(soap_action)
+        setup :stubs, soap_action
         self
       end
 
-      # Expects a given +response+ to be returned.
-      def returns(response = nil)
-        http = case response
-          when Symbol then { :body => Fixture[action, response] }
-          when Hash   then response
-        end
-
-        Savon.config.hooks.define(:spec_response, :soap_request) do |_, request|
-          respond_with(http)
-        end
-
+      # Expects a given SOAP body Hash to be used.
+      def with(soap_body)
+        Savon::SOAP::XML.any_instance.expects(:body=).with(soap_body) if mock_method == :expects
         self
       end
 
-      # Expects that the +action+ doesn't get called.
       def never
-        Savon.config.hooks.reject(:spec_action)
+        httpi_mock.never
+        self
+      end
 
-        Savon.config.hooks.define(:spec_never, :soap_request) do |_, request|
-          actual = request.soap.input[1]
-          raise ExpectationError, "expected #{action.inspect} never to be called, but it was!" if actual == action
+      # Sets up HTTPI to return a given +response+.
+      def returns(response = nil)
+        http = { :code => 200, :headers => {}, :body => "" }
 
-          respond_with
+        case response
+          when Symbol   then http[:body] = Fixture[soap_action, response]
+          when Hash     then http.merge! response
         end
 
+        httpi_mock.returns HTTPI::Response.new(http[:code], http[:headers], http[:body])
+        self
+      end
+
+      # Sets up Savon to respond like there was a SOAP fault.
+      def raises_soap_fault
+        Savon::SOAP::Response.any_instance.expects(:soap_fault?).returns(true)
         self
       end
 
     private
 
-      def action=(action)
-        @action = action.is_a?(String) ? action.to_sym : lower_camelcase(action.to_s).to_sym
+      def setup(mock_method, soap_action)
+        self.mock_method = mock_method
+        self.soap_action = soap_action
+        self.httpi_mock = new_httpi_mock
       end
 
-      attr_reader :action
+      attr_accessor :mock_method
 
-      def respond_with(http = {})
-        defaults = { :code => 200, :headers => {}, :body => "" }
-        http = defaults.merge(http)
-
-        HTTPI::Response.new(http[:code], http[:headers], http[:body])
+      def soap_action=(soap_action)
+        @soap_action = soap_action.kind_of?(Symbol) ? lower_camelcase(soap_action.to_s) : soap_action
       end
 
-      # Extracted from CoreExt of Savon 0.9.9
+      attr_reader :soap_action
+
+      def new_httpi_mock
+        HTTPI.send(mock_method, :post).with { |http| http.body =~ /<\/(.+:)?#{soap_action}>/ }
+      end
+
+      attr_accessor :httpi_mock
+
       def lower_camelcase(source_str)
         str = source_str.dup
         str.gsub!(/\/(.?)/) { "::#{$1.upcase}" }
@@ -93,7 +78,7 @@ module Savon
         str.gsub!(/(\A|\s)([A-Z])/) { $1 + $2.downcase }
         str
       end
-
     end
   end
 end
+
